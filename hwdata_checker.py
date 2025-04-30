@@ -12,9 +12,9 @@
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation.
 #
-import sys
 
 """ Query hwdata database and return description of vendor and/or device. """
+
 
 # pylint: disable=misplaced-bare-raise
 
@@ -45,7 +45,7 @@ class USB:
                 l = line.split()
                 if line.startswith('#'):
                     if line.startswith('# List of known device classes, subclasses and protocols'):
-                        break # end of database of devices, rest is protocols, types etc.
+                        break  # end of database of devices, rest is protocols, types etc.
                     else:
                         continue
                 elif len(l) == 0:
@@ -69,7 +69,7 @@ class USB:
                     vendor_name = ' '.join(l[1:])
                     if vendor not in USB.devices:
                         USB.devices[vendor] = [vendor_name, {}]
-                    else: # this should not happen
+                    else:  # this should not happen
                         USB.devices[vendor][0] = vendor_name
 
     def get_vendor(self, vendor):
@@ -101,6 +101,7 @@ class USB:
                 return None
         else:
             raise NotImplementedError()
+
 
 class PCI:
     """ Interface to pci.ids from hwdata package """
@@ -140,9 +141,9 @@ class PCI:
                 else:
                     vendor = l[0].lower()
                     vendor_name = ' '.join(l[1:])
-                    if not vendor in  list(PCI.devices.keys()):
+                    if not vendor in list(PCI.devices.keys()):
                         PCI.devices[vendor] = [vendor_name, {}]
-                    else: # this should not happen
+                    else:  # this should not happen
                         PCI.devices[vendor][0] = vendor_name
 
     def get_vendor(self, vendor):
@@ -198,11 +199,13 @@ class PCI:
         else:
             raise NotImplementedError()
 
-import os
+
 import time
 import urllib.request
 from urllib.error import URLError
+
 from utils import *
+
 
 def update_hwdata() -> bool:
     pci_ids_link = "https://pci-ids.ucw.cz/v2.2/pci.ids"

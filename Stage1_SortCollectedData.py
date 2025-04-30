@@ -1,10 +1,13 @@
 import re
 import time
+
 import openpyxl
+
 from hwdata_checker import update_hwdata, PCI, USB
 from utils import *
 
 # 更新 pci.ids 和 usb.ids
+clear_screen()
 print_info("========================================")
 print_info("正在获取 hwdata 设备数据库...")
 if not update_hwdata():
@@ -14,6 +17,8 @@ if not update_hwdata():
 hwdata_excel_file = "hwdata.xlsx"
 
 # 用来判别每行是否为有效信息的关键词列表
+# (如果具有以下关键词,则视为该行信息无效)
+
 keyword_list = [
     "Subsystem:",
     "Kernel modules:",
@@ -24,6 +29,7 @@ keyword_list = [
     "None",
     "pcilib:",
     "lspci:",
+    "https"
     "$"
 ]
 
@@ -81,6 +87,7 @@ def strip_pcie_id(input_text: str) -> str:
             print_warn("未找到该行的有效设备编号: " + input_text)
             return ""
 
+
 # 从有效行中提取 USB 设备编号
 def strip_usb_id(input_text: str) -> str:
     pattern = r'[0-9a-f]{4}:[0-9a-f]{4}'
@@ -89,6 +96,7 @@ def strip_usb_id(input_text: str) -> str:
         return result[0]
     else:
         return ""
+
 
 # 新建列表和集合
 pcie_useful_data_set = set()
@@ -110,6 +118,9 @@ hwdata_workbook.close()
 # ==================== PCIe 部分 ====================
 
 # 遍历列表, 逐行判断是否为有效的 PCI(e) 数据
+print_info("========================================")
+time.sleep(3)
+clear_screen()
 print_info("========================================")
 print_info("正在整理 PCI(e) 设备信息...")
 for block in pcie_raw_data_list:
@@ -201,11 +212,21 @@ for i in range(len(pcie_useful_data_list)):
     hwdata_sorted_pcie_sheet.cell(i + 1, 1, pcie_useful_data_list[i])
 for i in range(len(usb_useful_data_list)):
     hwdata_sorted_usb_sheet.cell(i + 1, 1, usb_useful_data_list[i])
-try:
-    hwdata_workbook.save(hwdata_excel_file)
-except PermissionError:
-    print_warn("无法写入表格文件, 程序无法继续.")
-    exit(1)
+
+save_success = False
+
+while not save_success:
+    try:
+        hwdata_workbook.save(hwdata_excel_file)
+        save_success = True
+    except PermissionError:
+        print_warn("无法写入表格文件, 程序无法继续!\n" +
+                   "请关闭表格文件 \"hwdata.xlsx\"后, 按 [E] 键重试." +
+                   "或按 [Q] 键退出程序."
+                   )
+        print_warn("========================================")
+        wait_for_user_input()
+
 hwdata_workbook.close()
 
 # 汇报结果
@@ -217,26 +238,35 @@ usb_count_total = usb_count_useful + len(usb_already_existed_data_set)
 print_info(f"整理完毕, 已将信息保存到表格中.")
 print_info(f"收集表中有 {pcie_count_total} 条 PCI(e) 设备 ID, 其中有 {pcie_count_useful} 条是目前未知的.")
 print_info(f"收集表中有 {usb_count_total} 条 USB 设备 ID, 其中有 {usb_count_useful} 条是目前未知的.")
+print_info("========================================")
+time.sleep(5)
+clear_screen()
 print_data("========================================")
 print_data("注意: 还有一些内容无法识别, 请检查:")
-time.sleep(3)
-print_data("PCI(e) 部分:")
-print_data("========================================")
+time.sleep(1)
+print_data("\nPCI(e) 部分:")
 for line in pcie_not_recognizable_data_list:
     print_data(line)
-print_data("========================================")
-print_data("USB 部分:")
-print_data("========================================")
+print_data("\nUSB 部分:")
 for line in usb_not_useful_data_set:
     print_data(line)
-print_data("========================================")
+print_info("========================================")
 
-time.sleep(3)
+time.sleep(1)
 print_info(
-    "接下来将打开表格, 您需要检视和修改 \"hwdata.xlsx\"\n" +
+    "接下来, 您需要检视和修改 \"hwdata.xlsx\", " +
     "确保所有的行都符合 [xxxx:xxxx] 的格式.\n" +
-    "在完成修改后, 您可继续执行本程序."
+    "按下 [E] 键, 将为您打开表格. 您也可以按下 [Q] 键退出程序."
 )
 
-wait_for_q()
+wait_for_user_input()
 open_file(hwdata_excel_file)
+time.sleep(2)
+
+print_info("========================================")
+print_info(
+    "当您完成修改后，按下 [E] 键, 将继续执行 (请确保您已经关闭电子表格程序).\n" +
+    "您也可以按下 [Q] 键退出程序."
+)
+print_info("========================================")
+wait_for_user_input()
