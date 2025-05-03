@@ -1,3 +1,4 @@
+import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -7,16 +8,22 @@ import openpyxl
 from hwdata_checker import update_hwdata, PCI, USB
 from online_info_checker import *
 
+# hwdata 问卷信息汇总表(需要手动下载!)
+hwdata_excel_file = "hwdata_信息缺漏征集表.xlsx"
+
 # 更新 pci.ids 和 usb.ids
 clear_screen()
-print_info("在开始之前, 请确保您已经导出 \"hwdata 信息缺漏征集表\" 并以 xls(x) 格式保存到程序目录下!")
+if not os.path.exists(hwdata_excel_file):
+    print_info("请从线上导出并下载 \"hwdata 信息缺漏征集表.xlsx\"并保存到程序目录下!")
+    print_info("电子表格文件不存在, 程序无法继续运行.")
+    quit(1)
+
 print_info("========================================")
 print_info("正在获取/更新本地的 hwdata 设备数据库...")
 if not update_hwdata():
     exit(1)
 
-# hwdata 问卷信息汇总表(需要手动下载!)
-hwdata_excel_file = "hwdata_信息缺漏征集表.xlsx"
+
 
 # 用来判别每行是否为有效信息的关键词列表
 # (如果具有以下关键词,则视为该行信息无效)
@@ -312,32 +319,34 @@ for block in usb_data_list:
 def search_pci_linuxhardware_and_save(_pci_id: str) -> None:
     result = search_pci_linuxhardware(_pci_id)
     pcie_name_on_linuxhardware_dict[_pci_id] = result
+    print_data(f"[{_pci_id}] {result}")
 
 
 def search_pci_driverscollection_and_save(_pci_id: str) -> None:
     result = search_pci_driverscollection(_pci_id)
     pcie_name_on_driverscollection_dict[_pci_id] = result
+    print_data(f"[{_pci_id}] {result}")
 
 
 def search_pci_treexy_and_save(_pci_id: str) -> None:
     result = search_pci_treexy(_pci_id)
     pcie_name_on_treexy_dict[_pci_id] = result
-
+    print_data(f"[{_pci_id}] {result}")
 
 def search_usb_linuxhardware_and_save(_usb_id: str) -> None:
     result = search_usb_linuxhardware(_usb_id)
     usb_name_on_linuxhardware_dict[_usb_id] = result
-
+    print_data(f"[{_usb_id}] {result}")
 
 def search_usb_driverscollection_and_save(_usb_id: str) -> None:
     result = search_usb_driverscollection(_usb_id)
     usb_name_on_driverscollection_dict[_usb_id] = result
-
+    print_data(f"[{_usb_id}] {result}")
 
 def search_usb_treexy_and_save(_usb_id: str) -> None:
     result = search_usb_treexy(_usb_id)
     usb_name_on_treexy_dict[_usb_id] = result
-
+    print_data(f"[{_usb_id}] {result}")
 
 clear_screen()
 print_info("========================================")
