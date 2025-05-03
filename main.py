@@ -203,12 +203,16 @@ usb_useful_data_list = sorted(list(usb_useful_data_set))
 hwdata_workbook = openpyxl.load_workbook(hwdata_excel_file)
 
 try:
-    del hwdata_workbook["整理后的PCIe数据"]
-    del hwdata_workbook["整理后的USB数据"]
     del hwdata_workbook["检索的PCIe数据"]
     del hwdata_workbook["检索的USB数据"]
 except KeyError:
     pass
+try:
+    del hwdata_workbook["整理后的PCIe数据"]
+    del hwdata_workbook["整理后的USB数据"]
+except KeyError:
+    pass
+
 sheet_count = len(hwdata_workbook.sheetnames)
 hwdata_sorted_pcie_sheet = hwdata_workbook.create_sheet("整理后的PCIe数据", sheet_count)
 hwdata_sorted_usb_sheet = hwdata_workbook.create_sheet("整理后的USB数据", sheet_count + 1)
@@ -364,10 +368,13 @@ print_info(f"已经完成全部检索!")
 hwdata_workbook = openpyxl.load_workbook(hwdata_excel_file)
 
 try:
-    del hwdata_workbook["整理后的PCIe数据"]
-    del hwdata_workbook["整理后的USB数据"]
     del hwdata_workbook["检索的PCIe数据"]
     del hwdata_workbook["检索的USB数据"]
+except KeyError:
+    pass
+try:
+    del hwdata_workbook["整理后的PCIe数据"]
+    del hwdata_workbook["整理后的USB数据"]
 except KeyError:
     pass
 

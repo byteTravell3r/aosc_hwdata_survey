@@ -222,5 +222,5 @@ def search_usb_treexy(_usb_id: str) -> str:
 
 
 if __name__ == "__main__":
-    ret = search_usb_treexy("13d3:3548")
+    ret = search_usb_treexy("19e5:3690")
     print(ret)
