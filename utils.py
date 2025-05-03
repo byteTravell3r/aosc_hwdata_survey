@@ -15,9 +15,11 @@ def print_data(text: str) -> None:
     print(Fore.MAGENTA + text + Style.RESET_ALL)
     pass
 
+
 def clear_screen() -> None:
     print("\033[2J\033[3J\033[1;1H")
     pass
+
 
 import sys
 import platform, os, subprocess

@@ -1,15 +1,17 @@
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import openpyxl
 
 from hwdata_checker import update_hwdata, PCI, USB
-from utils import *
+from online_info_checker import *
 
 # 更新 pci.ids 和 usb.ids
 clear_screen()
+print_info("在开始之前, 请确保您已经导出 \"hwdata 信息缺漏征集表\" 并以 xls(x) 格式保存到程序目录下!")
 print_info("========================================")
-print_info("正在获取 hwdata 设备数据库...")
+print_info("正在获取/更新本地的 hwdata 设备数据库...")
 if not update_hwdata():
     exit(1)
 
@@ -59,7 +61,7 @@ def pcie_input_is_valid(input_text: str) -> bool:
         return False
 
 
-# 从有效行中提取 PCIe 设备编号
+# 从有效行中提取 PCIe 设备编号, (格式 0000:0000)
 def strip_pcie_id(input_text: str) -> str:
     pattern = r'[0-9a-f]{4}:[0-9a-f]{4}'
     result = re.findall(pattern, input_text, flags=re.IGNORECASE)
@@ -74,10 +76,10 @@ def strip_pcie_id(input_text: str) -> str:
         pattern = r'[0-9a-f]{4}'
         result = re.findall(pattern, input_text, flags=re.IGNORECASE)
         if result:
-            if input_text.find("[AMD]") != -1:
-                return f"1022:{result[0]}"
             if input_text.find("[AMD/ATI]") != -1:
                 return f"1002:{result[0]}"
+            if input_text.find("[AMD]") != -1:
+                return f"1022:{result[0]}"
             if input_text.find("Intel") != -1:
                 return f"8086:{result[0]}"
             if input_text.find("Loongson") != -1:
@@ -88,7 +90,7 @@ def strip_pcie_id(input_text: str) -> str:
             return ""
 
 
-# 从有效行中提取 USB 设备编号
+# 从有效行中提取 USB 设备编号, (格式 0000:0000)
 def strip_usb_id(input_text: str) -> str:
     pattern = r'[0-9a-f]{4}:[0-9a-f]{4}'
     result = re.findall(pattern, input_text, flags=re.IGNORECASE)
@@ -203,6 +205,8 @@ hwdata_workbook = openpyxl.load_workbook(hwdata_excel_file)
 try:
     del hwdata_workbook["整理后的PCIe数据"]
     del hwdata_workbook["整理后的USB数据"]
+    del hwdata_workbook["检索的PCIe数据"]
+    del hwdata_workbook["检索的USB数据"]
 except KeyError:
     pass
 sheet_count = len(hwdata_workbook.sheetnames)
@@ -270,3 +274,163 @@ print_info(
 )
 print_info("========================================")
 wait_for_user_input()
+
+hwdata_workbook = openpyxl.load_workbook(hwdata_excel_file)
+hwdata_pcie_sheet = hwdata_workbook["整理后的PCIe数据"]
+hwdata_usb_sheet = hwdata_workbook["整理后的USB数据"]
+
+pcie_data_list = list(hwdata_pcie_sheet.columns)[0]
+usb_data_list = list(hwdata_usb_sheet.columns)[0]
+hwdata_workbook.close()
+
+# 创建字典(用于多线程)
+pcie_name_on_linuxhardware_dict = dict()
+pcie_name_on_driverscollection_dict = dict()
+pcie_name_on_treexy_dict = dict()
+
+usb_name_on_linuxhardware_dict = dict()
+usb_name_on_driverscollection_dict = dict()
+usb_name_on_treexy_dict = dict()
+
+for block in pcie_data_list:
+    pci_id = block.value
+    pcie_name_on_linuxhardware_dict[pci_id] = "检索中..."
+    pcie_name_on_driverscollection_dict[pci_id] = "检索中..."
+    pcie_name_on_treexy_dict[pci_id] = "检索中..."
+
+for block in usb_data_list:
+    usb_id = block.value
+    usb_name_on_linuxhardware_dict[usb_id] = "检索中..."
+    usb_name_on_driverscollection_dict[usb_id] = "检索中..."
+    usb_name_on_treexy_dict[usb_id] = "检索中..."
+
+
+def search_pci_linuxhardware_and_save(_pci_id: str) -> None:
+    result = search_pci_linuxhardware(_pci_id)
+    pcie_name_on_linuxhardware_dict[_pci_id] = result
+
+
+def search_pci_driverscollection_and_save(_pci_id: str) -> None:
+    result = search_pci_driverscollection(_pci_id)
+    pcie_name_on_driverscollection_dict[_pci_id] = result
+
+
+def search_pci_treexy_and_save(_pci_id: str) -> None:
+    result = search_pci_treexy(_pci_id)
+    pcie_name_on_treexy_dict[_pci_id] = result
+
+
+def search_usb_linuxhardware_and_save(_usb_id: str) -> None:
+    result = search_usb_linuxhardware(_usb_id)
+    usb_name_on_linuxhardware_dict[_usb_id] = result
+
+
+def search_usb_driverscollection_and_save(_usb_id: str) -> None:
+    result = search_usb_driverscollection(_usb_id)
+    usb_name_on_driverscollection_dict[_usb_id] = result
+
+
+def search_usb_treexy_and_save(_usb_id: str) -> None:
+    result = search_usb_treexy(_usb_id)
+    usb_name_on_treexy_dict[_usb_id] = result
+
+
+clear_screen()
+print_info("========================================")
+# 开始检索
+print_info(f"开始在线检索未知的设备名称, 这可能需要几分钟... ")
+print_info("信息来源: LinuxHardware.org, DriversCollection.com, Treexy.com")
+print_info("========================================")
+
+# 最大线程数可根据实际情况修改
+with ThreadPoolExecutor(max_workers=8) as executor:
+    print_info("正在检索 PCI(e) 设备名称信息")
+    for pci_id in pcie_name_on_linuxhardware_dict:
+        executor.submit(search_pci_linuxhardware_and_save, pci_id)
+        executor.submit(search_pci_driverscollection_and_save, pci_id)
+        executor.submit(search_pci_treexy_and_save, pci_id)
+
+    print_info("正在检索 USB 设备名称信息")
+    for usb_id in usb_name_on_linuxhardware_dict:
+        executor.submit(search_usb_linuxhardware_and_save, usb_id)
+        executor.submit(search_usb_driverscollection_and_save, usb_id)
+        executor.submit(search_usb_treexy_and_save, usb_id)
+
+    executor.shutdown(wait=True)
+
+print_info(f"已经完成全部检索!")
+
+# 保存到工作簿中
+hwdata_workbook = openpyxl.load_workbook(hwdata_excel_file)
+
+try:
+    del hwdata_workbook["整理后的PCIe数据"]
+    del hwdata_workbook["整理后的USB数据"]
+    del hwdata_workbook["检索的PCIe数据"]
+    del hwdata_workbook["检索的USB数据"]
+except KeyError:
+    pass
+
+sheet_count = len(hwdata_workbook.sheetnames)
+hwdata_sorted_pcie_sheet = hwdata_workbook.create_sheet("检索的PCIe数据", sheet_count)
+hwdata_sorted_usb_sheet = hwdata_workbook.create_sheet("检索的USB数据", sheet_count + 1)
+
+hwdata_sorted_pcie_sheet.cell(1, 1, "PCI(e) 设备 ID")
+hwdata_sorted_pcie_sheet.cell(1, 2, "LinuxHardware 查询结果")
+hwdata_sorted_pcie_sheet.cell(1, 3, "DriversCollection 查询结果")
+hwdata_sorted_pcie_sheet.cell(1, 4, "Treexy 查询结果")
+
+hwdata_sorted_usb_sheet.cell(1, 1, "USB 设备 ID")
+hwdata_sorted_usb_sheet.cell(1, 2, "LinuxHardware 查询结果")
+hwdata_sorted_usb_sheet.cell(1, 3, "DriversCollection 查询结果")
+hwdata_sorted_usb_sheet.cell(1, 4, "Treexy 查询结果")
+
+pcie_id_list = list(pcie_name_on_linuxhardware_dict.keys())
+usb_id_list = list(usb_name_on_linuxhardware_dict.keys())
+
+pcie_name_on_linuxhardware_list = list(pcie_name_on_linuxhardware_dict.values())
+pcie_name_on_driverscollection_list = list(pcie_name_on_driverscollection_dict.values())
+pcie_name_on_treexy_list = list(pcie_name_on_treexy_dict.values())
+
+usb_name_on_linuxhardware_list = list(usb_name_on_linuxhardware_dict.values())
+usb_name_on_driverscollection_list = list(usb_name_on_driverscollection_dict.values())
+usb_name_on_treexy_list = list(usb_name_on_treexy_dict.values())
+
+for i in range(len(pcie_id_list)):
+    hwdata_sorted_pcie_sheet.cell(i + 2, 1, pcie_id_list[i])
+    hwdata_sorted_pcie_sheet.cell(i + 2, 2, pcie_name_on_linuxhardware_list[i])
+    hwdata_sorted_pcie_sheet.cell(i + 2, 3, pcie_name_on_driverscollection_list[i])
+    hwdata_sorted_pcie_sheet.cell(i + 2, 4, pcie_name_on_treexy_list[i])
+
+for i in range(len(usb_id_list)):
+    hwdata_sorted_usb_sheet.cell(i + 2, 1, usb_id_list[i])
+    hwdata_sorted_usb_sheet.cell(i + 2, 2, usb_name_on_linuxhardware_list[i])
+    hwdata_sorted_usb_sheet.cell(i + 2, 3, usb_name_on_driverscollection_list[i])
+    hwdata_sorted_usb_sheet.cell(i + 2, 4, usb_name_on_treexy_list[i])
+
+print_info("========================================")
+save_success = False
+
+while not save_success:
+    try:
+        hwdata_workbook.save(hwdata_excel_file)
+        save_success = True
+    except PermissionError:
+        print_warn("无法写入表格文件, 程序无法继续!\n" +
+                   "请关闭表格文件 \"hwdata.xlsx\"后, 按 [E] 键重试." +
+                   "或按 [Q] 键退出程序."
+                   )
+        print_warn("========================================")
+        wait_for_user_input()
+
+hwdata_workbook.close()
+
+print_info(f"已将在线检索的设备信息保存到表格中!")
+print_info("========================================")
+print_info("您可以按下 [E] 键打开电子表格检视结果, 也可以按下 [Q] 键中止程序.")
+print_info("========================================")
+wait_for_user_input()
+open_file(hwdata_excel_file)
+time.sleep(2)
+
+print_info("已完成全部任务, 结束程序...")
