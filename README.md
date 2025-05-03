@@ -1,4 +1,4 @@
-# HardwareData
+# AOSC_HardwareData_Survey
 https://aosc.io/news/detail/2024-11-19-hwdata-survey.zh-cn.md \
 用于(几乎是)全自动处理通过《hwdata 信息缺漏征集表》收集到的缺失硬件信息。
 
