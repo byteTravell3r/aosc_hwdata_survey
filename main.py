@@ -16,7 +16,7 @@ if not update_hwdata():
     exit(1)
 
 # hwdata 问卷信息汇总表(需要手动下载!)
-hwdata_excel_file = "hwdata.xlsx"
+hwdata_excel_file = "hwdata_信息缺漏征集表.xlsx"
 
 # 用来判别每行是否为有效信息的关键词列表
 # (如果具有以下关键词,则视为该行信息无效)
@@ -262,8 +262,8 @@ print_info("========================================")
 
 time.sleep(1)
 print_info(
-    "接下来, 您需要检视和修改 \"hwdata.xlsx\", " +
-    "确保所有的行都符合 [xxxx:xxxx] 的格式.\n" +
+    "接下来, 您需要检视和修改 \"hwdata.xlsx\", \n" +
+    "确保 \"整理后的PCIe数据\" 和 \"整理后的USB数据\" 两张表中所有的行都符合 [xxxx:xxxx] 的格式.\n" +
     "按下 [E] 键, 将为您打开表格. 您也可以按下 [Q] 键退出程序."
 )
 
@@ -342,19 +342,16 @@ def search_usb_treexy_and_save(_usb_id: str) -> None:
 clear_screen()
 print_info("========================================")
 # 开始检索
-print_info(f"开始在线检索未知的设备名称, 这可能需要几分钟... ")
+print_info(f"开始在线检索未知的 PCI(e) 和 USB 设备名称, 这可能需要几分钟... ")
 print_info("信息来源: LinuxHardware.org, DriversCollection.com, Treexy.com")
 print_info("========================================")
 
 # 最大线程数可根据实际情况修改
 with ThreadPoolExecutor(max_workers=8) as executor:
-    print_info("正在检索 PCI(e) 设备名称信息")
     for pci_id in pcie_name_on_linuxhardware_dict:
         executor.submit(search_pci_linuxhardware_and_save, pci_id)
         executor.submit(search_pci_driverscollection_and_save, pci_id)
         executor.submit(search_pci_treexy_and_save, pci_id)
-
-    print_info("正在检索 USB 设备名称信息")
     for usb_id in usb_name_on_linuxhardware_dict:
         executor.submit(search_usb_linuxhardware_and_save, usb_id)
         executor.submit(search_usb_driverscollection_and_save, usb_id)
@@ -435,6 +432,7 @@ hwdata_workbook.close()
 print_info(f"已将在线检索的设备信息保存到表格中!")
 print_info("========================================")
 print_info("您可以按下 [E] 键打开电子表格检视结果, 也可以按下 [Q] 键中止程序.")
+print_info("需要注意的是, 您需要自行判断这些不同来源的信息是否可靠, 并选择最合适的名称.")
 print_info("========================================")
 wait_for_user_input()
 open_file(hwdata_excel_file)
