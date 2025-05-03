@@ -161,3 +161,6 @@ cython_debug/
 
 # Excel Files
 *.xlsx
+
+# pci.ids and usb.ids
+*.ids
